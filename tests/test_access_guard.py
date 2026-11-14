@@ -102,5 +102,91 @@ class GuardTest(unittest.TestCase):
         self.assertEqual(self.run_guard("nagare-vplan", "WebSearch", query="riscv-arch-test"), 0)
 
 
+    # --- 論点 f（D23 の A）：承認の印は人だけが書く ---
+    def put(self, rel, text):
+        full = self.p(rel)
+        os.makedirs(os.path.dirname(full), exist_ok=True)
+        with open(full, "w", encoding="utf-8") as f:
+            f.write(text)
+        return full
+
+    DRAFT = "---\nid: SPEC-001\nstage: 2-spec\nstatus: draft    # draft / approved\napproved_by:\n---\n\n本文\n"
+
+    def test_ai_cannot_write_approved(self):
+        f = self.p("nagare/02_spec/SPEC-001.md")
+        self.assertEqual(self.run_guard("nagare-spec", "Write", file_path=f, content=self.DRAFT), 0)
+        approved = self.DRAFT.replace("status: draft ", "status: approved ")
+        self.assertEqual(self.run_guard("nagare-spec", "Write", file_path=f, content=approved), 2)
+
+    def test_ai_cannot_edit_status_or_approver(self):
+        f = self.put("nagare/02_spec/SPEC-001.md", self.DRAFT)
+        self.assertEqual(self.run_guard("nagare-spec", "Edit", file_path=f,
+                                        old_string="status: draft", new_string="status: approved"), 2)
+        self.assertEqual(self.run_guard("nagare-spec", "Edit", file_path=f,
+                                        old_string="approved_by:", new_string="approved_by: masa"), 2)
+        self.assertEqual(self.run_guard("nagare-spec", "Edit", file_path=f,
+                                        old_string="本文", new_string="本文を直した"), 0)
+
+    def test_body_edit_after_human_approval_is_allowed(self):
+        f = self.put("nagare/02_spec/SPEC-001.md",
+                     self.DRAFT.replace("status: draft ", "status: approved ").replace("approved_by:", "approved_by: masa"))
+        self.assertEqual(self.run_guard("nagare-review", "Edit", file_path=self.p("nagare/06_review/x.md"),
+                                        old_string="a", new_string="b"), 0)
+        self.assertEqual(self.run_guard("nagare-spec", "Edit", file_path=f,
+                                        old_string="本文", new_string="本文2"), 0)
+
+    def test_launch_decision_is_human_only(self):
+        f = self.put("nagare/07_launch/LAUNCH-001.md",
+                     "---\nid: LAUNCH-001\nstage: 7-launch\nstatus: draft\ndecided_by:\n---\n")
+        self.assertEqual(self.run_guard("nagare-launch", "Edit", file_path=f,
+                                        old_string="status: draft", new_string="status: go"), 2)
+        self.assertEqual(self.run_guard("nagare-launch", "Edit", file_path=f,
+                                        old_string="decided_by:", new_string="decided_by: masa"), 2)
+
+    def test_verify_can_set_pass_fail(self):
+        f = self.put("nagare/05_verify/VRES-01.md", "---\nid: VRES-01\nstage: 5-verify\nstatus: draft\n---\n")
+        self.assertEqual(self.run_guard("nagare-verify", "Edit", file_path=f,
+                                        old_string="status: draft", new_string="status: fail"), 0)
+
+
+class SignedTagTest(unittest.TestCase):
+    """D23 の C：人の鍵で署名したタグだけを承認とみなす。"""
+    CHECK = os.path.join(ROOT, "templates", ".claude", "hooks", "nagare_check_signed.py")
+
+    def setUp(self):
+        self.repo = tempfile.mkdtemp()
+        g = lambda *a: subprocess.run(["git", "-C", self.repo, *a], check=True, capture_output=True)
+        g("init", "-q")
+        g("-c", "user.name=t", "-c", "user.email=t@e", "commit", "-q", "--allow-empty", "-m", "init")
+        self.g = g
+
+    def tearDown(self):
+        shutil.rmtree(self.repo)
+
+    def check(self, id_):
+        return subprocess.run([sys.executable, self.CHECK, id_], cwd=self.repo, capture_output=True, text=True)
+
+    def test_missing_or_unsigned_tag_fails(self):
+        self.assertEqual(self.check("LAUNCH-001").returncode, 1)
+        self.g("-c", "user.name=t", "-c", "user.email=t@e", "tag", "-a", "approve/LAUNCH-001", "-m", "go")
+        self.assertEqual(self.check("LAUNCH-001").returncode, 1)
+
+    @unittest.skipUnless(shutil.which("ssh-keygen"), "ssh-keygen がない")
+    def test_ssh_signed_tag_passes(self):
+        key = os.path.join(self.repo, "k")
+        subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", key], check=True)
+        pub = open(key + ".pub").read().strip()
+        allowed = os.path.join(self.repo, "allowed")
+        with open(allowed, "w") as f:
+            f.write("t@e " + pub + "\n")
+        for k, v in (("gpg.format", "ssh"), ("gpg.ssh.program", "ssh-keygen"), ("user.signingkey", key + ".pub"),
+                     ("gpg.ssh.allowedSignersFile", allowed), ("user.name", "t"), ("user.email", "t@e")):
+            self.g("config", k, v)
+        self.g("tag", "-s", "approve/LAUNCH-001", "-m", "go")
+        r = self.check("LAUNCH-001")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.stdout.strip(), "go")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

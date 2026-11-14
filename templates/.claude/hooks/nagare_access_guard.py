@@ -7,6 +7,8 @@
 - 設定は nagare/access.json（エージェントごとの read / write の場所）
 - 許可制の場所（design）は、nagare/permits.json に人が書いた許可があるときだけ読める
 - nagare/permits.json と nagare/access.json は、どのエージェントも書けない（人だけが書く）
+- 書式ファイルの承認の印（status: approved／⑦の go・conditional・no-go、approved_by、decided_by）を
+  新しく埋める・変える書き込みは止める（論点 f・D23 の A）。承認は人が直接書く
 - 止めるときは終了コード 2 と、理由を標準エラーに出す（Claude Code がエージェントに伝える）
 標準ライブラリだけを使う。
 """
@@ -83,6 +85,56 @@ def target(tool: str, ti: dict) -> tuple[str, str] | None:
     return None
 
 
+HUMAN_FIELDS = ("approved_by", "decided_by")
+LAUNCH_DECISIONS = ("go", "conditional", "no-go")
+
+
+def front(text: str) -> dict:
+    """先頭の YAML（--- で囲まれた部分）から key: value を拾う（コメントは除く）。"""
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return {}
+    out = {}
+    for ln in lines[1:]:
+        if ln.strip() == "---":
+            break
+        if ":" in ln and not ln.lstrip().startswith("#"):
+            k, v = ln.split(":", 1)
+            out[k.strip()] = v.split("#", 1)[0].strip()
+    return out
+
+
+def after_write(tool: str, ti: dict, full: str) -> str | None:
+    """書き込んだあとのファイルの中身を作る。作れなければ None。"""
+    try:
+        with open(full, encoding="utf-8") as f:
+            cur = f.read()
+    except (FileNotFoundError, IsADirectoryError):
+        cur = ""
+    if tool == "Write":
+        return ti.get("content", "")
+    edits = ti.get("edits") if tool == "MultiEdit" else [ti]
+    for e in edits or []:
+        old, new = e.get("old_string", ""), e.get("new_string", "")
+        if old not in cur:
+            return None
+        cur = cur.replace(old, new) if e.get("replace_all") else cur.replace(old, new, 1)
+    return cur
+
+
+def approval_changed(before: dict, after: dict) -> str | None:
+    st_b, st_a = before.get("status", ""), after.get("status", "")
+    if st_a != st_b:
+        if st_a == "approved":
+            return "status を approved に"
+        if after.get("stage", "").startswith("7") and st_a in LAUNCH_DECISIONS:
+            return f"⑦の判断を {st_a} に"
+    for k in HUMAN_FIELDS:
+        if after.get(k, "") != before.get(k, "") and after.get(k, ""):
+            return f"{k} を"
+    return None
+
+
 def deny(msg: str) -> None:
     sys.stderr.write(msg + "\n")
     sys.exit(2)
@@ -110,6 +162,19 @@ def main() -> None:
         if p in PROTECTED:
             deny(f"{p} は人だけが書けます。許可が必要なら、人に頼んでください。")
         if under(p, a.get("write", [])):
+            if p.startswith("nagare/") and p.endswith(".md"):
+                full = os.path.join(root, p)
+                try:
+                    with open(full, encoding="utf-8") as f:
+                        before = front(f.read())
+                except (FileNotFoundError, IsADirectoryError):
+                    before = {}
+                text = after_write(data.get("tool_name", ""), data.get("tool_input", {}) or {}, full)
+                if text is not None:
+                    what = approval_changed(before, front(text))
+                    if what:
+                        deny(f"{what}変える書き込みは止めました。承認の印は人だけが書きます（D23）。"
+                             "承認が必要なら、作業を止めて人に頼んでください。")
             sys.exit(0)
         deny(f"{agent} は {p} に書けません（書ける場所：{a.get('write', [])}）。")
 

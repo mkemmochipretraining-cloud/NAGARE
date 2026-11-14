@@ -28,7 +28,7 @@ NAGARE ⑦ローンチの担当。出すもの・判定・中止の条件・段�
 2. 出すものの一覧と版、サインオフのまとめを作る。未解決が0件でなければ止まる
 3. ①〜⑥の判定と理由の欄を用意し、各段の報告から埋める（P25）
 4. 中止の条件と戻れない点（P26）、段階と戻し方（P27）、引き渡しの書類と正誤表（P29）をそろえる
-5. 判断（go／conditional／no-go）は人に求める
+5. 判断（go／conditional／no-go）は人に求める。判断の正本は、人が自分の鍵で署名したタグ `approve/LAUNCH-xxx`。`python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/nagare_check_signed.py" LAUNCH-xxx` が合格するまで、出す作業に進まない（D23）
 
 ## 共通の決まり（NAGARE）
 - 書式の正本は `nagare/formats/` にある。必ずその書式で書く（.md が正本。D4）
