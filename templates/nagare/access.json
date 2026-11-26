@@ -1,45 +1,112 @@
 {
   "_note": "NAGARE のエージェントごとの読める・書ける場所（D5〜D8・D14）。人だけが編集する。design はプロジェクトの設計物の場所に合わせて直す。",
-  "design": ["rtl", "src", "examples"],
+  "design": [
+    "rtl",
+    "src",
+    "examples"
+  ],
   "agents": {
     "nagare-intent": {
-      "read":  ["nagare/formats", "nagare/01_intent"],
-      "write": ["nagare/01_intent"],
+      "read": [
+        "nagare/formats",
+        "nagare/01_intent"
+      ],
+      "write": [
+        "nagare/01_intent"
+      ],
       "design": "permit"
     },
     "nagare-spec": {
-      "read":  ["nagare/formats", "nagare/01_intent", "nagare/02_spec", "nagare/06_review"],
-      "write": ["nagare/02_spec"],
+      "read": [
+        "nagare/formats",
+        "nagare/01_intent",
+        "nagare/02_spec",
+        "nagare/06_review"
+      ],
+      "write": [
+        "nagare/02_spec"
+      ],
       "design": "permit"
     },
     "nagare-vplan": {
-      "read":  ["nagare/formats", "nagare/01_intent", "nagare/02_spec", "nagare/03_plan", "nagare/25_vplan", "nagare/25_tests", "nagare/ports"],
-      "write": ["nagare/25_vplan", "nagare/25_tests"],
+      "read": [
+        "nagare/formats",
+        "nagare/01_intent",
+        "nagare/02_spec",
+        "nagare/03_plan",
+        "nagare/25_vplan",
+        "nagare/25_tests",
+        "nagare/ports"
+      ],
+      "write": [
+        "nagare/25_vplan",
+        "nagare/25_tests"
+      ],
       "design": "permit"
     },
     "nagare-plan": {
-      "read":  ["nagare/formats", "nagare/02_spec", "nagare/03_plan"],
-      "write": ["nagare/03_plan"],
+      "read": [
+        "nagare/formats",
+        "nagare/02_spec",
+        "nagare/03_plan"
+      ],
+      "write": [
+        "nagare/03_plan"
+      ],
       "design": "always"
     },
     "nagare-impl": {
-      "read":  ["nagare/formats", "nagare/02_spec", "nagare/03_plan", "nagare/04_impl", "nagare/ports"],
-      "write": ["nagare/04_impl", "nagare/ports", "rtl", "src", "examples"],
+      "read": [
+        "nagare/formats",
+        "nagare/02_spec",
+        "nagare/03_plan",
+        "nagare/04_impl",
+        "nagare/ports",
+        "nagare/045_review"
+      ],
+      "write": [
+        "nagare/04_impl",
+        "nagare/ports",
+        "rtl",
+        "src",
+        "examples"
+      ],
       "design": "always"
     },
     "nagare-verify": {
-      "read":  ["nagare/formats", "nagare/25_vplan", "nagare/25_tests", "nagare/04_impl", "nagare/05_verify"],
-      "write": ["nagare/05_verify"],
+      "read": [
+        "nagare/formats",
+        "nagare/25_vplan",
+        "nagare/25_tests",
+        "nagare/04_impl",
+        "nagare/05_verify",
+        "nagare/045_review"
+      ],
+      "write": [
+        "nagare/05_verify"
+      ],
       "design": "always"
     },
     "nagare-review": {
-      "read":  ["nagare"],
-      "write": ["nagare/06_review"],
+      "read": [
+        "nagare"
+      ],
+      "write": [
+        "nagare/06_review"
+      ],
       "design": "always"
     },
     "nagare-launch": {
-      "read":  ["nagare/formats", "nagare/01_intent", "nagare/05_verify", "nagare/06_review", "nagare/07_launch"],
-      "write": ["nagare/07_launch"],
+      "read": [
+        "nagare/formats",
+        "nagare/01_intent",
+        "nagare/05_verify",
+        "nagare/06_review",
+        "nagare/07_launch"
+      ],
+      "write": [
+        "nagare/07_launch"
+      ],
       "design": "permit"
     }
   }

@@ -9,6 +9,12 @@ hooks:
       hooks:
         - type: command
           command: python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/nagare_access_guard.py" nagare-impl
+  PostToolUse:
+    - matcher: "Write|Edit|MultiEdit"
+      hooks:
+        - type: command
+          command: python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/nagare_codex_review.py"
+          timeout: 900
 ---
 
 # ④実装のエージェント（NAGARE）
@@ -55,3 +61,7 @@ NAGARE ④実装の担当。計画の作業包を1つずつ受け取り、RTL �
 - 作ったファイルの場所
 - 出口の条件の結果（pass／fail と、fail の理由）
 - 止まった理由（止まった場合）
+
+## Codex のレビュー（D29）
+- 実装報告の `status` を `done` にすると、hook が Codex を1回呼び、`nagare/045_review/CRV-<id>.md` を書く
+- レビュー記録の振り分け（採る・採らない・仕様に戻す）は人が書く。④は振り分けを書かない。「採る」になった指摘だけを、次の版で直す

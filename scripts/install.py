@@ -5,10 +5,12 @@
 
 入れるもの:
 - .claude/agents/nagare-*.md（8つのエージェント）
-- .claude/hooks/nagare_access_guard.py、nagare_check_signed.py
+- .claude/hooks/nagare_access_guard.py、nagare_check_signed.py、nagare_codex_review.py
+- nagare/tools/nagare_status.py（段の状態の見張り）
+- AGENTS.md（Codex のレビューの規則。すでにあれば上書きしない）
 - nagare/access.json、nagare/permits.json（すでにあれば上書きしない）
 - nagare/formats/（docs/03_書式 の8つの書式）
-- nagare/01_intent 〜 07_launch、25_vplan、25_tests、ports の空フォルダ
+- nagare/01_intent 〜 07_launch、25_vplan、25_tests、045_review、ports の空フォルダ
 """
 from __future__ import annotations
 
@@ -22,7 +24,7 @@ HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TPL = os.path.join(HERE, "templates")
 FORMATS = os.path.join(HERE, "docs", "03_書式")
 STAGES = ["01_intent", "02_spec", "03_plan", "25_vplan", "25_tests",
-          "04_impl", "05_verify", "06_review", "07_launch", "ports"]
+          "04_impl", "045_review", "05_verify", "06_review", "07_launch", "ports"]
 
 
 def copy_tree(src: str, dst: str) -> list[str]:
@@ -70,6 +72,13 @@ def main() -> int:
             json.dump(cfg, f, ensure_ascii=False, indent=2)
             f.write("\n")
         print(f"設計物の場所を {design} にしました")
+    copied += ["nagare/tools/" + c for c in copy_tree(os.path.join(TPL, "nagare", "tools"), os.path.join(nag, "tools"))]
+    agents_md = os.path.join(proj, "AGENTS.md")
+    if os.path.exists(agents_md):
+        print("そのまま残しました：AGENTS.md（Codex のレビューの規則は templates/AGENTS.md を見て手で足す）")
+    else:
+        shutil.copy2(os.path.join(TPL, "AGENTS.md"), agents_md)
+        copied.append("AGENTS.md")
     fmt = os.path.join(nag, "formats")
     os.makedirs(fmt, exist_ok=True)
     for f in sorted(os.listdir(FORMATS)):
